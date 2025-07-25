@@ -23,11 +23,11 @@ import {
   Trash2,
   Pencil,
   Filter,
-  X,
 } from 'lucide-react';
 import {EditDialog, ProjectCard} from '@/components/common/project';
 import {EmptyState} from '@/components/common/layout/EmptyState';
 import {TagFilterPopover} from '@/components/ui/tag-filter-popover';
+import {SelectedTagsFilter} from '@/components/ui/selected-tags-filter';
 import services from '@/lib/services';
 import {ProjectListItem} from '@/lib/services/project/types';
 import {motion} from 'motion/react';
@@ -300,7 +300,9 @@ export function MineProject({data, LoadingSkeleton}: MineProjectProps) {
         variants={itemVariants}
       >
         <div className="flex items-center gap-2">
-          <h2 className="text-lg font-semibold">所有项目</h2>
+          <h2 className="text-lg font-semibold">
+            {(selectedTags || []).length > 0 ? '筛选结果' : '所有项目'}
+          </h2>
           <Badge variant="secondary" className="text-xs font-bold">
             {total}
           </Badge>
@@ -328,33 +330,11 @@ export function MineProject({data, LoadingSkeleton}: MineProjectProps) {
       </motion.div>
 
       {/* 当前选择的标签展示 */}
-      {(selectedTags || []).length > 0 && (
-        <motion.div
-          className="flex items-center flex-wrap gap-2"
-          variants={itemVariants}
-        >
-          <span className="text-xs text-muted-foreground">筛选条件:</span>
-          {(selectedTags || []).map((tag) => (
-            <Badge
-              key={tag}
-              variant="outline"
-              className="px-2 py-0 h-6 bg-primary/5 text-primary border-primary/20 select-none cursor-pointer hover:bg-primary/10 transition-colors"
-              onClick={() => onTagToggle(tag)}
-            >
-              {tag}
-              <X className="ml-1 h-3 w-3" />
-            </Badge>
-          ))}
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-6 px-2 text-xs text-muted-foreground"
-            onClick={onClearAllFilters}
-          >
-            清除全部
-          </Button>
-        </motion.div>
-      )}
+      <SelectedTagsFilter
+        selectedTags={selectedTags}
+        onTagToggle={onTagToggle}
+        onClearAllFilters={onClearAllFilters}
+      />
 
       {/* 内容区域 */}
       <motion.div variants={itemVariants}>{renderContent()}</motion.div>

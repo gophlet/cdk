@@ -2,13 +2,32 @@
 
 import {Badge} from '@/components/ui/badge';
 import {Button} from '@/components/ui/button';
-import {Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious} from '@/components/ui/carousel';
-import {InputButton, InputButtonAction, InputButtonProvider, InputButtonSubmit, InputButtonInput} from '@/components/animate-ui/buttons/input';
-import {ChevronLeft, ChevronRight, Search, Compass, Filter} from 'lucide-react';
+import {
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+  CarouselNext,
+  CarouselPrevious,
+} from '@/components/ui/carousel';
+import {
+  InputButton,
+  InputButtonAction,
+  InputButtonProvider,
+  InputButtonSubmit,
+  InputButtonInput,
+} from '@/components/animate-ui/buttons/input';
+import {
+  ChevronLeft,
+  ChevronRight,
+  Search,
+  Compass,
+  Filter,
+} from 'lucide-react';
 import {ProjectCard} from '@/components/common/project';
 import {ProjectListItem} from '@/lib/services/project/types';
 import {EmptyState} from '@/components/common/layout/EmptyState';
 import {TagFilterPopover} from '@/components/ui/tag-filter-popover';
+import {SelectedTagsFilter} from '@/components/ui/selected-tags-filter';
 import {motion} from 'motion/react';
 
 interface ExploreContentProps {
@@ -41,7 +60,11 @@ interface ExploreContentProps {
 /**
  * 探索页面内容组件
  */
-export function ExploreContent({data, LoadingSkeleton, pageSize = 20}: ExploreContentProps) {
+export function ExploreContent({
+  data,
+  LoadingSkeleton,
+  pageSize = 20,
+}: ExploreContentProps) {
   const {
     projects,
     upcomingProjects,
@@ -95,7 +118,7 @@ export function ExploreContent({data, LoadingSkeleton, pageSize = 20}: ExploreCo
             disabled={currentPage === 1}
           >
             <ChevronLeft className="h-4 w-4 mr-1" />
-          上一页
+            上一页
           </Button>
           <Button
             variant="outline"
@@ -103,7 +126,7 @@ export function ExploreContent({data, LoadingSkeleton, pageSize = 20}: ExploreCo
             onClick={handleNextPage}
             disabled={currentPage === totalPages}
           >
-          下一页
+            下一页
             <ChevronRight className="h-4 w-4 ml-1" />
           </Button>
         </div>
@@ -182,12 +205,16 @@ export function ExploreContent({data, LoadingSkeleton, pageSize = 20}: ExploreCo
         />
       </motion.div>
 
+      {/* 当前选择的标签展示 */}
+      <SelectedTagsFilter
+        selectedTags={selectedTags}
+        onTagToggle={onTagToggle}
+        onClearAllFilters={onClearAllFilters}
+      />
+
       {/* 即将开始 */}
       {upcomingProjects.length > 0 && (
-        <motion.div
-          className="space-y-6 relative py-4"
-          variants={itemVariants}
-        >
+        <motion.div className="space-y-6 relative py-4" variants={itemVariants}>
           <div className="flex items-center gap-2">
             <h2 className="text-lg font-semibold">即将开始</h2>
             <Badge variant="secondary" className="text-xs font-bold">
@@ -202,7 +229,10 @@ export function ExploreContent({data, LoadingSkeleton, pageSize = 20}: ExploreCo
           >
             <CarouselContent className="-ml-2 md:-ml-4 px-2 py-2">
               {upcomingProjects.map((project, index) => (
-                <CarouselItem key={`upcoming-${project.id}`} className="pl-2 md:pl-4 basis-full sm:basis-1/2 lg:basis-1/3 xl:basis-1/4">
+                <CarouselItem
+                  key={`upcoming-${project.id}`}
+                  className="pl-2 md:pl-4 basis-full sm:basis-1/2 lg:basis-1/3 xl:basis-1/4"
+                >
                   <ProjectCard
                     project={project}
                     delay={index * 0.08}
@@ -223,7 +253,11 @@ export function ExploreContent({data, LoadingSkeleton, pageSize = 20}: ExploreCo
         variants={itemVariants}
       >
         <div className="flex items-center gap-2">
-          <h2 className="text-lg font-semibold">所有项目</h2>
+          <h2 className="text-lg font-semibold">
+            {(selectedTags || []).length > 0 || searchKeyword ?
+              '查找结果' :
+              '所有项目'}
+          </h2>
           <Badge variant="secondary" className="text-xs font-bold">
             {total}
           </Badge>
@@ -232,35 +266,43 @@ export function ExploreContent({data, LoadingSkeleton, pageSize = 20}: ExploreCo
 
       <motion.div variants={itemVariants}>
         {loading ? (
-        <LoadingSkeleton />
-      ) : projects.length === 0 ? (
-        <EmptyState
-          icon={Compass}
-          title="暂无分发项目"
-          description={(selectedTags || []).length > 0 || searchKeyword ? '未找到符合条件的分发项目' : '请前往 我的项目 创建或尝试刷新页面'}
-          className="p-12 text-center"
-        >
-          {((selectedTags || []).length > 0 || searchKeyword) && (
-            <Button variant="outline" onClick={onClearAllFilters} className="text-xs h-8">
-              清除搜索/筛选条件
-            </Button>
-          )}
-        </EmptyState>
-      ) : (
-        <>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
-            {projects.map((project) => (
-              <ProjectCard
-                key={`project-${project.id}`}
-                project={project}
-                delay={0}
-                onClick={() => onCardClick(project)}
-              />
-            ))}
-          </div>
-          <Pagination />
-        </>
-      )}
+          <LoadingSkeleton />
+        ) : projects.length === 0 ? (
+          <EmptyState
+            icon={Compass}
+            title="暂无分发项目"
+            description={
+              (selectedTags || []).length > 0 || searchKeyword ?
+                '未找到符合条件的分发项目' :
+                '请前往 我的项目 创建或尝试刷新页面'
+            }
+            className="p-12 text-center"
+          >
+            {((selectedTags || []).length > 0 || searchKeyword) && (
+              <Button
+                variant="outline"
+                onClick={onClearAllFilters}
+                className="text-xs h-8"
+              >
+                清除搜索/筛选条件
+              </Button>
+            )}
+          </EmptyState>
+        ) : (
+          <>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
+              {projects.map((project) => (
+                <ProjectCard
+                  key={`project-${project.id}`}
+                  project={project}
+                  delay={0}
+                  onClick={() => onCardClick(project)}
+                />
+              ))}
+            </div>
+            <Pagination />
+          </>
+        )}
       </motion.div>
     </motion.div>
   );
