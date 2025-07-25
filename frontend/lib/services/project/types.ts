@@ -228,6 +228,8 @@ export interface ListProjectsRequest {
   size: number;
   /** 标签过滤 */
   tags?: string[];
+  /** 搜索关键词 */
+  search?: string;
 }
 
 /**
@@ -240,6 +242,8 @@ export interface ApiRequestParams {
   size: number;
   /** 标签数组（可选） */
   tags?: string[];
+  /** 搜索关键词（可选） */
+  search?: string;
 }
 
 /**

@@ -26,6 +26,10 @@ package project
 
 import (
 	"errors"
+	"net/http"
+	"strings"
+	"time"
+
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/linux-do/cdk/internal/apps/oauth"
@@ -33,9 +37,6 @@ import (
 	"github.com/linux-do/cdk/internal/db"
 	"github.com/linux-do/cdk/internal/utils"
 	"gorm.io/gorm"
-	"net/http"
-	"strings"
-	"time"
 )
 
 type ProjectResponse struct {
@@ -253,13 +254,13 @@ func UpdateProject(c *gin.Context) {
 			if err != nil {
 				return err
 			}
-			
+
 			// Update project counts only if there are new items to add
 			if actualItemsCount > 0 {
 				project.TotalItems += actualItemsCount
 				project.IsCompleted = false
 			}
-			
+
 			// save project
 			if err := tx.Save(project).Error; err != nil {
 				return err
@@ -603,6 +604,7 @@ type ListProjectsRequest struct {
 	Current int      `json:"current" form:"current" binding:"min=1"`
 	Size    int      `json:"size" form:"size" binding:"min=1,max=100"`
 	Tags    []string `json:"tags" form:"tags" binding:"dive,min=1,max=16"`
+	Search  string   `json:"search" form:"search" binding:"max=50"`
 }
 
 type ListProjectsResponseDataResult struct {
@@ -647,7 +649,7 @@ func ListProjects(c *gin.Context) {
 
 	currentUser, _ := oauth.GetUserFromContext(c)
 
-	pagedData, err := ListProjectsWithTags(c.Request.Context(), offset, req.Size, req.Tags, currentUser)
+	pagedData, err := ListProjectsWithTags(c.Request.Context(), offset, req.Size, req.Tags, req.Search, currentUser)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, ListProjectsResponse{ErrorMsg: err.Error()})
 		return
@@ -674,7 +676,7 @@ func ListMyProjects(c *gin.Context) {
 	}
 	offset := (req.Current - 1) * req.Size
 
-	pagedData, err := ListMyProjectsWithTags(c.Request.Context(), userID, offset, req.Size, req.Tags)
+	pagedData, err := ListMyProjectsWithTags(c.Request.Context(), userID, offset, req.Size, req.Tags, req.Search)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, ListProjectsResponse{ErrorMsg: err.Error()})
 		return

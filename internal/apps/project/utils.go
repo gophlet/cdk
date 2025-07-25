@@ -26,9 +26,10 @@ package project
 
 import (
 	"context"
+	"time"
+
 	"github.com/linux-do/cdk/internal/apps/oauth"
 	"github.com/linux-do/cdk/internal/db"
-	"time"
 )
 
 // ProjectWithTags 返回项目及其标签
@@ -44,7 +45,7 @@ type ProjectsPage struct {
 }
 
 // ListProjectsWithTags 查询未结束的项目列表及其标签
-func ListProjectsWithTags(ctx context.Context, offset, limit int, tags []string, currentUser *oauth.User) (*ListProjectsResponseData, error) {
+func ListProjectsWithTags(ctx context.Context, offset, limit int, tags []string, search string, currentUser *oauth.User) (*ListProjectsResponseData, error) {
 	now := time.Now()
 
 	getTotalCountSql := `SELECT COUNT(DISTINCT p.id) as total
@@ -52,7 +53,7 @@ func ListProjectsWithTags(ctx context.Context, offset, limit int, tags []string,
 			LEFT JOIN project_tags pt ON p.id = pt.project_id
 			WHERE p.end_time > ? AND p.is_completed = false AND p.status = ? AND p.minimum_trust_level <= ? AND p.risk_level >= ? AND p.hide_from_explore = false AND NOT EXISTS ( SELECT 1 FROM project_items pi WHERE pi.project_id = p.id AND pi.receiver_id = ?)`
 
-	getProjectWithTagsSql := `SELECT 
+	getProjectWithTagsSql := `SELECT
     			p.id,p.name,p.description,p.distribution_type,p.total_items,
        			p.start_time,p.end_time,p.minimum_trust_level,p.allow_same_ip,p.risk_level,p.created_at,
 				IF(COUNT(pt.tag) = 0, NULL, JSON_ARRAYAGG(pt.tag)) AS tags
@@ -61,10 +62,21 @@ func ListProjectsWithTags(ctx context.Context, offset, limit int, tags []string,
 			WHERE p.end_time > ? AND p.is_completed = false AND p.status = ? AND p.minimum_trust_level <= ? AND p.risk_level >= ? AND p.hide_from_explore = false AND NOT EXISTS ( SELECT 1 FROM project_items pi WHERE pi.project_id = p.id AND pi.receiver_id = ?)`
 
 	var parameters = []interface{}{now, ProjectStatusNormal, currentUser.TrustLevel, currentUser.RiskLevel(), currentUser.ID}
+
+	// 添加标签筛选
 	if len(tags) > 0 {
 		getTotalCountSql += ` AND pt.tag IN (?)`
 		getProjectWithTagsSql += ` AND pt.tag IN (?)`
 		parameters = append(parameters, tags)
+	}
+
+	// 添加搜索功能
+	if search != "" {
+		searchCondition := ` AND (p.name LIKE ? OR p.description LIKE ?)`
+		getTotalCountSql += searchCondition
+		getProjectWithTagsSql += searchCondition
+		searchPattern := "%" + search + "%"
+		parameters = append(parameters, searchPattern, searchPattern)
 	}
 	// 查询总数
 	var total int64
@@ -97,13 +109,13 @@ func ListProjectsWithTags(ctx context.Context, offset, limit int, tags []string,
 }
 
 // ListMyProjectsWithTags 查询我创建的项目列表及其标签
-func ListMyProjectsWithTags(ctx context.Context, creatorID uint64, offset, limit int, tags []string) (*ListProjectsResponseData, error) {
+func ListMyProjectsWithTags(ctx context.Context, creatorID uint64, offset, limit int, tags []string, search string) (*ListProjectsResponseData, error) {
 	getTotalCountSql := `SELECT COUNT(DISTINCT p.id) as total
 			FROM projects p
 			LEFT JOIN project_tags pt ON p.id = pt.project_id
 			WHERE p.creator_id = ? AND p.status = ?`
 
-	getMyProjectWithTagsSql := `SELECT 
+	getMyProjectWithTagsSql := `SELECT
 				p.id,p.name,p.description,p.distribution_type,p.total_items,
 				p.start_time,p.end_time,p.minimum_trust_level,p.allow_same_ip,p.risk_level,p.hide_from_explore,p.created_at,
 				IF(COUNT(pt.tag) = 0, NULL, JSON_ARRAYAGG(pt.tag)) AS tags
@@ -113,10 +125,20 @@ func ListMyProjectsWithTags(ctx context.Context, creatorID uint64, offset, limit
 
 	var parameters = []interface{}{creatorID, ProjectStatusNormal}
 
+	// 添加标签筛选
 	if len(tags) > 0 {
 		getTotalCountSql += ` AND pt.tag IN (?)`
 		getMyProjectWithTagsSql += ` AND pt.tag IN (?)`
 		parameters = append(parameters, tags)
+	}
+
+	// 添加搜索功能
+	if search != "" {
+		searchCondition := ` AND (p.name LIKE ? OR p.description LIKE ?)`
+		getTotalCountSql += searchCondition
+		getMyProjectWithTagsSql += searchCondition
+		searchPattern := "%" + search + "%"
+		parameters = append(parameters, searchPattern, searchPattern)
 	}
 
 	// 查询总数

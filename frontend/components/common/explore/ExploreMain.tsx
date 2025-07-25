@@ -59,55 +59,67 @@ export function ExploreMain() {
   }, []);
 
   /**
+   * 判断项目是否为活跃状态的工具函数
+   */
+  const isActiveProject = useCallback((project: ProjectListItem) => {
+    const now = new Date();
+    const startTime = new Date(project.start_time);
+    const endTime = new Date(project.end_time);
+    return now >= startTime && now <= endTime && project.total_items > 0;
+  }, []);
+
+  /**
+   * 判断项目是否即将开始的工具函数
+   */
+  const isUpcomingProject = useCallback((project: ProjectListItem) => {
+    const now = new Date();
+    const startTime = new Date(project.start_time);
+    return startTime > now && project.total_items > 0;
+  }, []);
+
+  /**
+   * 所有活跃项目（不受筛选影响，用于特色项目选择）
+   */
+  const allActiveProjects = useMemo(() => {
+    return (allProjects || []).filter(isActiveProject);
+  }, [allProjects, isActiveProject]);
+
+  // 使用稳定的排序方式选择特色项目，避免使用Math.random()
+  // 特色项目不受搜索和筛选影响
+  const featuredProjects = useMemo(() => {
+    if (!allActiveProjects?.length) return [];
+
+    // 使用稳定的排序方式：按项目ID进行稳定排序，取前5个
+    return [...allActiveProjects]
+        .sort((a, b) => a.id.localeCompare(b.id))
+        .slice(0, 5);
+  }, [allActiveProjects]);
+
+  /**
    * 项目过滤和分类逻辑
    */
   const processedData = useMemo(() => {
-    const now = new Date();
-
-    /** 应用搜索和标签过滤 */
-    let filteredProjects = allProjects || [];
-
-    if (searchKeyword.trim()) {
-      filteredProjects = filteredProjects.filter((project) =>
-        project.name.toLowerCase().includes(searchKeyword.toLowerCase()) ||
-        (project.description && project.description.toLowerCase().includes(searchKeyword.toLowerCase())),
-      );
-    }
-
-    /** 分类项目 */
-    const activeProjects = filteredProjects.filter((project) => {
-      const startTime = new Date(project.start_time);
-      const endTime = new Date(project.end_time);
-      return now >= startTime && now <= endTime && project.total_items > 0;
-    });
-
-    const upcomingList = filteredProjects.filter((project) => {
-      const startTime = new Date(project.start_time);
-      return startTime > now && project.total_items > 0;
-    });
+    /**
+     * 注意：现在搜索和标签筛选都由后端处理
+     * 前端只需要对已筛选的数据进行分类
+     */
+    const activeProjects = allProjects.filter(isActiveProject);
+    const upcomingList = allProjects.filter(isUpcomingProject);
 
     /** 即将开始项目 */
     const upcomingProjects = upcomingList
-        .sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime())
+        .sort(
+            (a, b) =>
+              new Date(a.start_time).getTime() - new Date(b.start_time).getTime(),
+        )
         .slice(0, 6);
 
     return {
-      projects: filteredProjects,
       activeProjects,
       upcomingProjects,
-      total: totalCount,
+      total: totalCount, // 使用后端返回的总数
     };
-  }, [allProjects, searchKeyword, totalCount]);
-
-  // 使用稳定的排序方式选择特色项目，避免使用Math.random()
-  const featuredProjects = useMemo(() => {
-    if (!processedData.activeProjects?.length) return [];
-
-    // 使用稳定的排序方式：按项目ID进行稳定排序，取前5个
-    return [...processedData.activeProjects]
-        .sort((a, b) => a.id.localeCompare(b.id))
-        .slice(0, 5);
-  }, [processedData.activeProjects]);
+  }, [allProjects, totalCount, isActiveProject, isUpcomingProject]);
 
   /**
    * 获取项目列表
@@ -119,6 +131,7 @@ export function ExploreMain() {
       current: currentPage,
       size: PAGE_SIZE,
       tags: (selectedTags || []).length > 0 ? selectedTags : undefined,
+      search: searchKeyword.trim() || undefined,
     });
 
     if (result.success && result.data) {
@@ -130,7 +143,7 @@ export function ExploreMain() {
     }
 
     setLoading(false);
-  }, [currentPage, selectedTags]);
+  }, [currentPage, selectedTags, searchKeyword]);
 
   /**
    * 获取标签列表
@@ -148,8 +161,12 @@ export function ExploreMain() {
   const handleTagToggle = (tag: string) => {
     setSelectedTags((prev) => {
       const prevTags = prev || [];
-      const newTags = tag === '' ? [] :
-        prevTags.includes(tag) ? prevTags.filter((t) => t !== tag) : [...prevTags, tag];
+      const newTags =
+        tag === '' ?
+          [] :
+          prevTags.includes(tag) ?
+            prevTags.filter((t) => t !== tag) :
+            [...prevTags, tag];
 
       setCurrentPage(1);
       setShowAllTags(false);
@@ -239,7 +256,7 @@ export function ExploreMain() {
         />
         <ExploreContent
           data={{
-            projects: processedData.projects,
+            projects: allProjects,
             upcomingProjects: processedData.upcomingProjects,
             total: processedData.total,
             currentPage,
